@@ -1,0 +1,48 @@
+
+---
+title: "Prediction Assignment Writeup"
+author: "Rohan Dagade"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# 1. Introduction
+
+The goal of this project is to predict the manner in which people performed
+barbell lifts using accelerometer data from sensors on the belt, arm, forearm,
+and dumbbell. The target variable is `classe`, and data are taken from the
+Weight Lifting Exercise Dataset.
+
+---
+
+# 2. Data Loading and Cleaning
+
+```{r setup, message=FALSE, warning=FALSE}
+library(caret)
+library(randomForest)
+library(dplyr)
+set.seed(33833)
+
+# Load data
+train_url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+test_url  <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+train_raw <- read.csv(train_url, na.strings=c("NA","#DIV/0!",""))
+test_raw  <- read.csv(test_url,  na.strings=c("NA","#DIV/0!",""))
+
+# Clean data
+remove_cols <- c("X","user_name","raw_timestamp_part_1","raw_timestamp_part_2",
+                 "cvtd_timestamp","new_window","num_window")
+train <- train_raw %>% select(-one_of(intersect(names(train_raw), remove_cols)))
+test  <- test_raw  %>% select(-one_of(intersect(names(test_raw), remove_cols)))
+
+# Remove near-zero variance and high-NA predictors
+nzv <- nearZeroVar(train, saveMetrics = TRUE)
+train <- train[, !nzv$nzv]
+na_frac <- sapply(train, function(x) mean(is.na(x)))
+drop_na_cols <- names(na_frac[na_frac > 0.6])
+train <- train %>% select(-one_of(drop_na_cols))
+test <- test %>% select(intersect(names(test), names(train)))
+
+train$classe <- as.factor(train$classe)
+dim(train)
